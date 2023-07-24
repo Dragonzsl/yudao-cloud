@@ -189,4 +189,27 @@ public class UserController {
         return success(userService.importUserList(list, updateSupport));
     }
 
+    @GetMapping("/page")
+    @Operation(summary = "获得用户分页列表")
+    @PreAuthorize("@ss.hasPermission('system:user:list')")
+    public CommonResult<PageResult<UserPageItemRespVO>> getUser(@Valid UserPageReqVO reqVO) {
+        // 获得用户分页列表
+        PageResult<AdminUserDO> pageResult = userService.getUserPage(reqVO);
+        if (CollUtil.isEmpty(pageResult.getList())) {
+            return success(new PageResult<>(pageResult.getTotal())); // 返回空
+        }
+
+        // 获得拼接需要的数据
+        Collection<Long> deptIds = convertList(pageResult.getList(), AdminUserDO::getDeptId);
+        Map<Long, DeptDO> deptMap = deptService.getDeptMap(deptIds);
+        // 拼接结果返回
+        List<UserPageItemRespVO> userList = new ArrayList<>(pageResult.getList().size());
+        pageResult.getList().forEach(user -> {
+            UserPageItemRespVO respVO = UserConvert.INSTANCE.convert(user);
+            respVO.setDept(UserConvert.INSTANCE.convert(deptMap.get(user.getDeptId())));
+            userList.add(respVO);
+        });
+        return success(new PageResult<>(userList, pageResult.getTotal()));
+    }
+
 }
